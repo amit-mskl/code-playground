@@ -1,0 +1,2 @@
+Prompt 1 - 
+Hi, Have a look at the attached dbml file detailing out the schema of an ecommerce company, GlobalMart. Based on the schema, I'd want you to design basic to intermediate SQL problems for me to attempt and solve. Please ensure that you do not give me the answers. Strictly give the problems for me to try. You are my guide whose responsibility is to make me learn

@@ -1,0 +1,732 @@
+// Database Schema converted to DBML format
+// Generated from PostgreSQL schema information
+// Only includes tables that actually exist in the provided schema
+
+Table _prisma_migrations {
+  id varchar(36) [not null]
+  checksum varchar(64) [not null]
+  finished_at timestamptz
+  migration_name varchar(255) [not null]
+  logs text
+  rolled_back_at timestamptz
+  started_at timestamptz [not null, default: 'now()']
+  applied_steps_count integer [not null, default: 0]
+}
+
+Table announcement_users {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  announcement_id uuid [not null, ref: > announcements.id]
+  user_id uuid [not null, ref: > users.id]
+  read_at timestamptz
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  read_email_at timestamptz
+  sendgrid_message_id text
+}
+
+Table announcements {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  deployment_id uuid [not null, ref: > deployments.id]
+  type varchar [not null] // USER-DEFINED type
+  subject text [not null]
+  message text [not null]
+  message_file_id uuid [ref: > files.id]
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  updated_by uuid [ref: > users.id]
+  notify_on_email boolean [not null, default: true]
+}
+
+Table answers {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  submission_id uuid [not null, ref: > submissions.id]
+  grading jsonb
+  user_id uuid [not null, ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+  content_id uuid [ref: > contents.id]
+}
+
+Table attachments {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  file_id uuid [not null, ref: > files.id]
+  content_id uuid [not null] // Cannot reference - content_type determines target table
+  content_type varchar [not null] // USER-DEFINED type
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  is_private boolean [not null, default: false]
+}
+
+Table choice_inputs {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  question text [not null]
+  shuffle_options boolean [not null, default: false]
+  type varchar [not null] // USER-DEFINED type
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+  proof_of_work_config jsonb
+}
+
+Table client_credits {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  client_id uuid [not null, ref: > clients.id]
+  total_credits integer [not null, default: 0]
+  remaining_credits integer [not null, default: 0]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table client_users {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  client_id uuid [not null, ref: > clients.id]
+  user_id uuid [not null, ref: > users.id]
+  is_admin boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  can_deploy_content boolean
+  can_manage_user boolean
+  can_manage_skill_path boolean
+  can_manage_channel boolean
+}
+
+Table clients {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  name text [not null]
+  domain_prefix text [not null]
+  logo_file_id uuid [ref: > files.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  in_demo_mode boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+  home_dashboard_url text
+  self_sign_up_allowed boolean [not null, default: false]
+  self_sign_up_email_domains text
+}
+
+Table cloud_lab_subscription_events {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  subscription_id integer [not null]
+  cloud_lab_id uuid [not null, ref: > cloud_labs.id]
+  event_type text [not null]
+  data jsonb
+  user_id uuid [not null, ref: > users.id]
+  deployment_id uuid [ref: > deployments.id]
+  content_id uuid [not null, ref: > contents.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+}
+
+Table cloud_lab_users {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  user_id uuid [not null, ref: > users.id]
+  password text [not null]
+  created_at timestamptz [not null, default: 'CURRENT_TIMESTAMP']
+  nuvepro_user_id text [not null]
+  nuvepro_login_id text [not null]
+}
+
+Table cloud_labs {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  name text [not null]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  credit integer [not null]
+  duration bigint [not null]
+  instruction text [not null]
+  is_attached boolean [not null, default: false]
+  plan_id text [not null]
+  subscription_access_key_info jsonb [not null]
+  team_id text [not null]
+}
+
+Table co_creators {
+  content_id uuid [not null, ref: > contents.id]
+  user_id uuid [not null, ref: > users.id]
+  can_edit boolean [not null, default: true]
+  can_comment boolean [not null, default: true]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  can_evaluate boolean [not null, default: true]
+  
+  indexes {
+    (content_id, user_id) [pk]
+  }
+}
+
+Table code_execution_results {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  result jsonb [not null]
+  answer_id uuid [ref: > answers.id]
+  proof_of_work_id uuid [ref: > proof_of_works.id]
+  user_id uuid [not null, ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  submission_id uuid [not null, ref: > submissions.id]
+}
+
+Table code_inputs {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  question text [not null]
+  language text [not null]
+  snippet text [not null]
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  data_migration_file_id uuid [ref: > files.id]
+  database text
+  schema_migration_file_id uuid [ref: > files.id]
+  evaluation_rubric text
+}
+
+Table comment_replies {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  content text [not null]
+  commentId uuid [not null, ref: > comments.id]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table comments {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  content text [not null]
+  is_resolved boolean [not null, default: false]
+  comment_parent_type varchar [not null] // USER-DEFINED type
+  parent_id uuid [not null] // Cannot reference - parent_type determines target table
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table content_industries {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  content_id uuid [not null] // Cannot reference - content_type determines target table
+  content_type varchar [not null] // USER-DEFINED type
+  industry_id uuid [not null, ref: > industries.id]
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+}
+
+Table content_issues {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  type varchar [not null] // USER-DEFINED type
+  content_id uuid [not null, ref: > contents.id]
+  scenario_id uuid // No scenarios table exists in schema
+  scenario_input_id uuid [ref: > scenario_inputs.id]
+  title text [not null]
+  description text [not null]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+}
+
+Table content_scenarios {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  scenario_id uuid [not null] // No scenarios table exists in schema
+  content_id uuid [not null, ref: > contents.id]
+  position integer [not null]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  content_type varchar [not null] // USER-DEFINED type
+}
+
+Table content_tags {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  content_id uuid [not null] // Cannot reference - content_type determines target table
+  content_type varchar [not null] // USER-DEFINED type
+  tag_id uuid [not null, ref: > tags.id]
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+}
+
+Table contents {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  slug text [not null]
+  name text [not null]
+  overview text [not null]
+  poster_file_id uuid [ref: > files.id]
+  learning_objectives jsonb [not null, default: '[]']
+  pre_requisites jsonb [not null, default: '[]']
+  state varchar [not null, default: 'DRAFT'] // USER-DEFINED type
+  type varchar [not null] // USER-DEFINED type
+  is_free_offering boolean [not null, default: false]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  level varchar // USER-DEFINED type
+  duration_of_completion integer
+  value double
+  scenario_lock_in_enabled boolean [not null, default: false]
+  cloud_lab_id uuid [ref: > cloud_labs.id]
+  story_video_file_id uuid [ref: > files.id]
+  is_standalone boolean [not null]
+}
+
+Table creators {
+  user_id uuid [pk, not null, ref: > users.id]
+  is_admin boolean [not null, default: false]
+  has_cloud_lab_access boolean [not null, default: false]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  is_active boolean [not null, default: true]
+}
+
+Table credit_transactions {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  client_id uuid [not null, ref: > clients.id]
+  deployment_id uuid [ref: > deployments.id]
+  transaction_type varchar [not null] // USER-DEFINED type
+  credits integer [not null]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  user_id uuid [not null, ref: > users.id]
+  description text [not null]
+  title text [not null, default: 'Top up']
+}
+
+Table deployment_admins {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  deployment_id uuid [not null, ref: > deployments.id]
+  user_id uuid [not null, ref: > users.id]
+  notification_enabled boolean [not null, default: true]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table deployment_labels {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  deployment_id uuid [not null, ref: > deployments.id]
+  label_id uuid [not null, ref: > labels.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+}
+
+Table deployment_users {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  deployment_id uuid [not null, ref: > deployments.id]
+  user_id uuid [not null, ref: > users.id]
+  is_active boolean [not null, default: true]
+  deactivation_reason text
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table deployments {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  intent text [not null]
+  description text [not null]
+  start_timestamp timestamptz [not null]
+  end_timestamp timestamptz [not null]
+  configs jsonb [not null]
+  item_id uuid [not null] // Cannot reference - item_type determines target table
+  item_type varchar [not null] // USER-DEFINED type
+  is_active boolean [not null, default: true]
+  client_id uuid [not null, ref: > clients.id]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  send_email_announcement boolean [not null, default: false]
+  send_platform_announcement boolean [not null, default: false]
+  skill_path_modules_deadline jsonb
+}
+
+Table deprecated_contents {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  content_id uuid [not null, ref: > contents.id]
+  content_type varchar [not null] // USER-DEFINED type
+  alternate_content_id uuid [ref: > contents.id]
+  change_logs jsonb [not null, default: '[]']
+  created_by uuid [not null, ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+}
+
+Table evaluations {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  submission_id uuid [not null, ref: > submissions.id]
+  content_id uuid [not null, ref: > contents.id]
+  mode text [not null]
+  evaluator_id uuid [not null, ref: > users.id]
+  star integer
+  comment text
+  completed_at timestamptz
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table feature_flags {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  client_id uuid [not null, ref: > clients.id]
+  feature_id uuid [not null, ref: > features.id]
+  is_enabled boolean [not null]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table features {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  name text [not null]
+  description text
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+}
+
+Table feedbacks {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  rating integer [not null]
+  comment text
+  deployment_id uuid [not null, ref: > deployments.id]
+  module_id uuid [not null] // Cannot determine target table from schema
+  user_id uuid [not null, ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table file_upload_answers {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  file_id uuid [not null, ref: > files.id]
+  answer_id uuid [not null, ref: > answers.id]
+  user_id uuid [not null, ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table file_upload_inputs {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  question text [not null]
+  max_no_of_files integer [not null, default: 2]
+  max_file_size_in_mb bigint [not null, default: 100]
+  allowed_file_types text[]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+}
+
+Table files {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  name text [not null]
+  extension text [not null]
+  mime text [not null]
+  size double [not null]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  preview_url text [not null, default: '']
+  s3_key text [not null]
+}
+
+Table gradings {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  correct_option_ids uuid[]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+}
+
+Table industries {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  name text [not null]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table input_feedbacks {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  evaluation_id uuid [not null, ref: > evaluations.id]
+  star integer
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+  comment text
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table input_hints {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  content text [not null]
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table input_options {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  content text [not null]
+  image_file_id uuid [ref: > files.id]
+  position integer [not null]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+}
+
+Table input_solutions {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  content text [not null]
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table input_tags {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  tag_id uuid [not null, ref: > tags.id]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+}
+
+Table labels {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  name text [not null]
+  client_id uuid [not null, ref: > clients.id]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table llm_evaluations {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  evaluation_id uuid [not null, ref: > evaluations.id]
+  payload jsonb [not null]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table profiles {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  user_id uuid [not null, ref: > users.id]
+  first_name text [not null]
+  last_name text
+  avatar_file_id uuid [ref: > files.id]
+  linkedin text
+  twitter text
+  website text
+  github text
+  kaggle text
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table proof_of_works {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  answer_id uuid [not null, ref: > answers.id]
+  text text
+  uploaded_file_ids uuid[]
+  code_snippet text
+  user_id uuid [not null, ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table scenario_bundle_scenarios {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  scenario_bundle_id uuid [not null, ref: > scenario_bundles.id]
+  scenario_id uuid [not null] // No scenarios table exists in schema
+  position integer [not null]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table scenario_bundles {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  name text [not null]
+  description text
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  intent text [not null, default: 'ASSESSMENT']
+  scenario_lock_in_enabled boolean [not null, default: false]
+}
+
+Table scenario_inputs {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  scenario_id uuid [not null] // No scenarios table exists in schema
+  input_type varchar [not null] // USER-DEFINED type
+  position integer [not null]
+  level varchar // USER-DEFINED type
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table scenario_solutions {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  scenario_id uuid [not null] // No scenarios table exists in schema
+  content text [not null]
+  video_file_ids jsonb [not null, default: '[]']
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table scores {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  evaluation_id uuid [not null, ref: > evaluations.id]
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+  score integer [not null]
+  tag_id uuid [not null, ref: > tags.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table short_answer_inputs {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  question text [not null]
+  is_paragraph boolean [not null, default: false]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+  template text
+  proof_of_work_config jsonb
+}
+
+Table skill_path_modules {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  skill_path_id uuid [not null, ref: > skill_paths.id]
+  module_id uuid [not null] // Cannot determine target table from schema
+  module_type varchar [not null] // USER-DEFINED type
+  position integer [not null]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table skill_paths {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  name text [not null]
+  slug text [not null]
+  state varchar [not null, default: 'DRAFT'] // USER-DEFINED type
+  description text [not null, default: '']
+  poster_file_id uuid [ref: > files.id]
+  story_video_file_id uuid [ref: > files.id]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  is_free_offering boolean [not null, default: false]
+  client_id uuid [ref: > clients.id]
+}
+
+Table submissions {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  user_id uuid [not null, ref: > users.id]
+  deployment_id uuid [ref: > deployments.id]
+  feedback text
+  score integer
+  attempt integer [not null, default: 1]
+  status varchar [not null] // USER-DEFINED type
+  submitted_at timestamptz
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  hint_unlock_status jsonb
+  scenario_lock_in_status jsonb
+  skill_path_modules_status jsonb
+  content_id uuid [ref: > contents.id]
+  skill_path_id uuid [ref: > skill_paths.id]
+}
+
+Table tag_categories {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  name text [not null]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table tags {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  name text [not null]
+  parent_tag_id uuid [ref: > tags.id]
+  tag_category_id uuid [not null, ref: > tag_categories.id]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table text_answers {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  value text [not null]
+  answer_id uuid [not null, ref: > answers.id]
+  user_id uuid [not null, ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table text_inputs {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  content text [not null]
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+  type varchar [not null, default: 'WYSIWYG'] // USER-DEFINED type
+}
+
+Table users {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  email text [not null, unique]
+  is_active boolean [not null, default: true]
+  deactivation_reason text
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+}
+
+Table video_inputs {
+  id uuid [pk, not null, default: 'gen_random_uuid()']
+  created_by uuid [not null, ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamptz
+  video_file_id uuid [ref: > files.id]
+  scenario_input_id uuid [not null, ref: > scenario_inputs.id]
+}

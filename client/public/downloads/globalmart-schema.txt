@@ -1,0 +1,82 @@
+// Database Schema converted from PostgreSQL
+// Generated for e-commerce/retail business
+
+Table ex_customers {
+  customer_id varchar(20) [pk, not null]
+  customer_email varchar(50)
+  customer_name varchar(50)
+  segment varchar(20)
+  postal_code int
+  joining_date date
+}
+
+Table ex_locations {
+  postal_code int [pk, not null]
+  city varchar(20)
+  state varchar(20)
+  region varchar(20)
+  country varchar(50)
+}
+
+Table ex_logistics_partners {
+  partner_id varchar(20) [pk, not null]
+  partner_name varchar(50)
+}
+
+Table ex_order_payments {
+  order_id varchar(50) [pk, not null]
+  payment_value float [not null]
+  payment_type varchar(50) [not null]
+  payment_installments int [not null]
+}
+
+Table ex_orders {
+  order_id varchar(20) [pk, not null]
+  customer_id varchar(20)
+  partner_id varchar(20)
+  ship_mode varchar(50)
+  order_status varchar(20)
+  order_purchase_date timestamp
+  order_approved_at timestamp
+  order_dispatched_date timestamp
+  order_delivered_date timestamp
+  order_estimated_delivery_date date
+}
+
+Table ex_products {
+  product_id varchar(50) [pk]
+  product_name varchar(500) [not null]
+  colors varchar(20) [not null]
+  category varchar(20) [not null]
+  sub_category varchar(20) [not null]
+  date_added date [not null]
+  manufacturer varchar(50)
+  sizes varchar(500)
+  upc varchar(500)
+  weight varchar(30)
+  product_photos_qty int
+}
+
+Table ex_returns {
+  order_id varchar(20) [pk, not null]
+  return_reason varchar(50)
+}
+
+Table ex_transactions {
+  TransactionID int [pk, not null]
+  Order_ID varchar(20)
+  Product_ID varchar(20)
+  Sales_Amount float
+  Quantity float
+  Discount float
+  COGS float
+}
+
+// Relationships (Foreign Keys)
+Ref: ex_customers.postal_code > ex_locations.postal_code
+Ref: ex_orders.customer_id > ex_customers.customer_id
+Ref: ex_orders.partner_id > ex_logistics_partners.partner_id
+Ref: ex_order_payments.order_id > ex_orders.order_id
+Ref: ex_returns.order_id > ex_orders.order_id
+Ref: ex_transactions.Order_ID > ex_orders.order_id
+Ref: ex_transactions.Product_ID > ex_products.product_id

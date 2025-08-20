@@ -1,0 +1,30 @@
+{
+  "name": "code-playground",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "cd client && npm start",
+    "dev:server": "cd server && npm start",
+    "build": "cd client && npm run build",
+    "test": "cd client && npm test",
+    "install:all": "npm install && npm install --prefix client && npm install --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "description": "Combined SQL playground application with React frontend and Node.js backend",
+  "keywords": [
+    "sql",
+    "playground",
+    "react",
+    "nodejs",
+    "postgresql"
+  ],
+  "author": "",
+  "license": "ISC"
+}
