@@ -58,7 +58,13 @@ app.get('/api/test-supabase', async (req, res) => {
 
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'https://enqurious-code-arena.netlify.app'
+  ],
+  credentials: true
+}));
 app.use(express.json());
 
 // Test endpoint
