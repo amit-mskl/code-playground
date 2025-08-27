@@ -28,7 +28,7 @@ function App() {
   // Fetch available tables when user is logged in
   useEffect(() => {
     if (user) {
-      fetch('http://localhost:3001/api/tables')
+      fetch('https://code-playground-xm3c.onrender.com/api/tables')
         .then(res => res.json())
         .then(data => setAvailableTables(data.tables || []))
         .catch(err => console.error('Error fetching tables:', err));
@@ -57,7 +57,7 @@ const logActivity = async (activityType, sqlQuery = null, executionResult = null
       success: success
     };
 
-    await fetch('http://localhost:3001/api/log-activity', {
+    await fetch('https://code-playground-xm3c.onrender.com/api/log-activity', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(activityData)
@@ -127,7 +127,7 @@ const handleSignup = async (userData) => {
     const startTime = Date.now();
     
     try {
-      const response = await fetch('http://localhost:3001/api/query', {
+      const response = await fetch('https://code-playground-xm3c.onrender.com/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sql: query })
@@ -389,7 +389,7 @@ const handleSignup = async (userData) => {
 
   const fetchTableSchema = async (tableName) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/schema/${tableName}`);
+      const response = await fetch(`https://code-playground-xm3c.onrender.com/api/schema/${tableName}`);
       const result = await response.json();
       
       if (result.success) {

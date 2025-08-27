@@ -28,7 +28,7 @@ const Login = ({ onLogin, onSwitchToSignup }) => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/login', {
+      const response = await fetch('https://code-playground-xm3c.onrender.com/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -189,7 +189,7 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
     }
 
     try {
-      const response = await fetch('http://localhost:3001/api/signup', {
+      const response = await fetch('https://code-playground-xm3c.onrender.com/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
