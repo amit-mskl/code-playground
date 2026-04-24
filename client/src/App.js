@@ -2,6 +2,7 @@ import './App.css';
 import { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { Login, Signup } from './components/Auth';
+import Markdown from 'react-markdown';
 
 function App() {
   // Authentication state
@@ -799,17 +800,58 @@ const handleSignup = async (userData) => {
                 justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start'
               }}>
                 <div style={{
-                  maxWidth: '85%',
+                  maxWidth: '90%',
                   padding: '10px 13px',
                   borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
                   backgroundColor: msg.role === 'user' ? '#007bff' : '#f0f2f5',
                   color: msg.role === 'user' ? '#fff' : '#333',
                   fontSize: '13px',
-                  lineHeight: '1.5',
-                  whiteSpace: 'pre-wrap',
+                  lineHeight: '1.6',
                   wordBreak: 'break-word'
                 }}>
-                  {msg.content}
+                  {msg.role === 'user' ? (
+                    <span style={{whiteSpace: 'pre-wrap'}}>{msg.content}</span>
+                  ) : (
+                    <Markdown
+                      components={{
+                        code({ inline, children }) {
+                          return inline ? (
+                            <code style={{
+                              backgroundColor: '#e8e8e8',
+                              padding: '1px 5px',
+                              borderRadius: '3px',
+                              fontFamily: 'Monaco, Consolas, monospace',
+                              fontSize: '12px'
+                            }}>
+                              {children}
+                            </code>
+                          ) : (
+                            <pre style={{
+                              backgroundColor: '#1e1e1e',
+                              color: '#d4d4d4',
+                              padding: '10px 12px',
+                              borderRadius: '6px',
+                              overflowX: 'auto',
+                              fontSize: '12px',
+                              fontFamily: 'Monaco, Consolas, monospace',
+                              margin: '6px 0',
+                              lineHeight: '1.5'
+                            }}>
+                              <code>{children}</code>
+                            </pre>
+                          );
+                        },
+                        p({ children }) {
+                          return <p style={{margin: '4px 0'}}>{children}</p>;
+                        },
+                        strong({ children }) {
+                          return <strong style={{fontWeight: '600'}}>{children}</strong>;
+                        }
+                      }}
+                    >
+                      {msg.content}
+                    </Markdown>
+                  )}
                 </div>
               </div>
             ))}
