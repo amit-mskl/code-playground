@@ -1,7 +1,5 @@
-// Updated App.js - Add paste blocking to encourage typing
-
 import './App.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { Login, Signup } from './components/Auth';
 
@@ -16,6 +14,14 @@ function App() {
   const [availableTables, setAvailableTables] = useState([]);
   const [expandedTables, setExpandedTables] = useState({});
   const [tableSchemas, setTableSchemas] = useState({});
+
+  // AI chat state
+  const [chatMessages, setChatMessages] = useState([
+    { role: 'assistant', content: "Hi! I'm your SQL syntax tutor.\n\nI can help you fix syntax errors, explain SQL clause order, and show correct SQL patterns — but the query logic is yours to figure out.\n\nWhat syntax are you stuck on?" }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const chatBottomRef = useRef(null);
 
   // Check for stored user session on component mount
   useEffect(() => {
@@ -342,6 +348,41 @@ const handleSignup = async (userData) => {
     }, 4000);
   };
 
+  // Auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const sendChatMessage = async () => {
+    const userMsg = chatInput.trim();
+    if (!userMsg || isAiLoading) return;
+
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setIsAiLoading(true);
+
+    const lastError = typeof results === 'string' && results.startsWith('Error:') ? results : null;
+
+    try {
+      const response = await fetch('https://code-playground-xm3c.onrender.com/api/ai-help', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMsg,
+          currentQuery: query,
+          queryError: lastError,
+          history: chatMessages.slice(-6)
+        })
+      });
+      const data = await response.json();
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply || data.error }]);
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I'm having trouble connecting. Please try again." }]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   const createTable = (data) => {
     if (data.length === 0) return 'No rows found';
     
@@ -428,7 +469,7 @@ const handleSignup = async (userData) => {
 
   // Render main application for logged-in users
   return (
-    <div style={{display: 'flex', height: '100vh', fontFamily: 'Arial, sans-serif'}}>
+    <div style={{display: 'flex', height: '100vh', fontFamily: 'Arial, sans-serif', overflow: 'hidden'}}>
       
       {/* Sidebar */}
       <div style={{
@@ -558,150 +599,289 @@ const handleSignup = async (userData) => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div style={{flex: 1, padding: '20px', overflowY: 'auto'}}>
-        <header style={{textAlign: 'center', marginBottom: '30px'}}>
-          <h1 style={{margin: '0 0 10px 0', color: '#333'}}>Enqurious SQL Arena</h1>
-          <p style={{margin: 0, color: '#666'}}>Practice SQL queries interactively on GlobalMart's Database</p>
-        </header>
-        
-        <main>
-          {/* Download Resources Section */}
-          <div style={{
-            backgroundColor: '#f8f9fa',
-            border: '1px solid #e9ecef',
-            borderRadius: '8px',
-            padding: '20px',
-            marginBottom: '25px'
-          }}>
-            <h4 style={{
-              margin: '0 0 15px 0', 
-              color: '#333',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              📚 How to start?
-            </h4>
-            <p style={{
-              margin: '0 0 15px 0',
-              color: '#666',
-              fontSize: '14px'
-            }}>
-              Go to your favorite chatbot (ChatGPT, Gemini, Claude), upload the E-R Diagram and copy paste the prompt from the Starter prompts and follow your AI mentor's advice :)
-            </p>
+      {/* Main Content + AI Panel wrapper */}
+      <div style={{flex: 1, display: 'flex', overflow: 'hidden'}}>
+
+        {/* Left: SQL Editor area */}
+        <div style={{flex: 1, padding: '20px', overflowY: 'auto'}}>
+          <header style={{textAlign: 'center', marginBottom: '30px'}}>
+            <h1 style={{margin: '0 0 10px 0', color: '#333'}}>Enqurious SQL Arena</h1>
+            <p style={{margin: 0, color: '#666'}}>Practice SQL queries interactively on GlobalMart's Database</p>
+          </header>
+
+          <main>
+            {/* Download Resources Section */}
             <div style={{
-              display: 'flex',
-              gap: '12px',
-              flexWrap: 'wrap'
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #e9ecef',
+              borderRadius: '8px',
+              padding: '20px',
+              marginBottom: '25px'
             }}>
+              <h4 style={{
+                margin: '0 0 15px 0',
+                color: '#333',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                📚 How to start?
+              </h4>
+              <p style={{
+                margin: '0 0 15px 0',
+                color: '#666',
+                fontSize: '14px'
+              }}>
+                Go to your favorite chatbot (ChatGPT, Gemini, Claude), upload the E-R Diagram and copy paste the prompt from the Starter prompts and follow your AI mentor's advice :)
+              </p>
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                flexWrap: 'wrap'
+              }}>
+                <button
+                  onClick={downloadDBML}
+                  style={{
+                    padding: '10px 16px',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#218838'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#28a745'}
+                >
+                  📄 E-R Diagram
+                </button>
+                <button
+                  onClick={downloadStarterPrompts}
+                  style={{
+                    padding: '10px 16px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#0056b3'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#007bff'}
+                >
+                  💡 Starter prompts
+                </button>
+              </div>
+            </div>
+
+            <div className="query-section">
+              <h3 style={{color: '#333'}}>Write your SQL query:</h3>
+              <div style={{
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                marginBottom: '15px',
+                overflow: 'hidden'
+              }}>
+                <Editor
+                  height="180px"
+                  language="sql"
+                  value={query}
+                  onChange={(value) => setQuery(value || '')}
+                  onMount={handleEditorDidMount}
+                  theme="light"
+                  options={{
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    fontSize: 14,
+                    fontFamily: 'Monaco, Consolas, monospace',
+                    lineNumbers: 'on',
+                    glyphMargin: false,
+                    folding: false,
+                    lineDecorationsWidth: 10,
+                    lineNumbersMinChars: 3,
+                    renderLineHighlight: 'line',
+                    tabSize: 2,
+                    insertSpaces: true,
+                    wordWrap: 'on',
+                    automaticLayout: true,
+                    formatOnPaste: true,
+                    formatOnType: true
+                  }}
+                />
+              </div>
               <button
-                onClick={downloadDBML}
+                onClick={runQuery}
                 style={{
-                  padding: '10px 16px',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#218838'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#28a745'}
-              >
-                📄 E-R Diagram
-              </button>
-              <button
-                onClick={downloadStarterPrompts}
-                style={{
-                  padding: '10px 16px',
+                  padding: '10px 20px',
                   backgroundColor: '#007bff',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: '4px',
                   cursor: 'pointer',
                   fontSize: '14px',
                   fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'background-color 0.2s'
+                  marginBottom: '25px'
                 }}
                 onMouseEnter={(e) => e.target.style.backgroundColor = '#0056b3'}
                 onMouseLeave={(e) => e.target.style.backgroundColor = '#007bff'}
               >
-                💡 Starter prompts
+                Run Query
               </button>
+            </div>
+
+            <div className="results-section">
+              <h3 style={{color: '#333'}}>Results:</h3>
+              <div className="results-area">
+                {results}
+              </div>
+            </div>
+          </main>
+        </div>
+
+        {/* Right: AI SQL Tutor Panel */}
+        <div style={{
+          width: '360px',
+          flexShrink: 0,
+          borderLeft: '1px solid #ddd',
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#fff'
+        }}>
+          {/* Panel header */}
+          <div style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid #e9ecef',
+            backgroundColor: '#f8f9fa'
+          }}>
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              <span style={{fontSize: '20px'}}>🤖</span>
+              <div>
+                <div style={{fontWeight: '600', color: '#333', fontSize: '15px'}}>SQL Syntax Tutor</div>
+                <div style={{fontSize: '11px', color: '#888', marginTop: '2px'}}>Powered by Claude Haiku</div>
+              </div>
+            </div>
+            <div style={{
+              marginTop: '10px',
+              padding: '8px 10px',
+              backgroundColor: '#fff3cd',
+              border: '1px solid #ffeaa7',
+              borderRadius: '6px',
+              fontSize: '11px',
+              color: '#856404',
+              lineHeight: '1.4'
+            }}>
+              Helps with SQL <strong>syntax only</strong>. Query logic is yours to figure out.
             </div>
           </div>
 
-          <div className="query-section">
-            <h3 style={{color: '#333'}}>Write your SQL query:</h3>
-            <div style={{
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              marginBottom: '15px',
-              overflow: 'hidden'
-            }}>
-              <Editor
-                height="180px"
-                language="sql"
-                value={query}
-                onChange={(value) => setQuery(value || '')}
-                onMount={handleEditorDidMount} // NEW: Add paste blocking handler
-                theme="light"
-                options={{
-                  minimap: { enabled: false },
-                  scrollBeyondLastLine: false,
-                  fontSize: 14,
-                  fontFamily: 'Monaco, Consolas, monospace',
-                  lineNumbers: 'on',
-                  glyphMargin: false,
-                  folding: false,
-                  lineDecorationsWidth: 10,
-                  lineNumbersMinChars: 3,
-                  renderLineHighlight: 'line',
-                  tabSize: 2,
-                  insertSpaces: true,
-                  wordWrap: 'on',
-                  automaticLayout: true,
-                  formatOnPaste: true,
-                  formatOnType: true
+          {/* Messages area */}
+          <div style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            {chatMessages.map((msg, i) => (
+              <div key={i} style={{
+                display: 'flex',
+                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start'
+              }}>
+                <div style={{
+                  maxWidth: '85%',
+                  padding: '10px 13px',
+                  borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                  backgroundColor: msg.role === 'user' ? '#007bff' : '#f0f2f5',
+                  color: msg.role === 'user' ? '#fff' : '#333',
+                  fontSize: '13px',
+                  lineHeight: '1.5',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
+                }}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+            {isAiLoading && (
+              <div style={{display: 'flex', justifyContent: 'flex-start'}}>
+                <div style={{
+                  padding: '10px 14px',
+                  borderRadius: '14px 14px 14px 4px',
+                  backgroundColor: '#f0f2f5',
+                  color: '#888',
+                  fontSize: '13px'
+                }}>
+                  Thinking...
+                </div>
+              </div>
+            )}
+            <div ref={chatBottomRef} />
+          </div>
+
+          {/* Input area */}
+          <div style={{
+            padding: '12px 16px',
+            borderTop: '1px solid #e9ecef',
+            backgroundColor: '#f8f9fa'
+          }}>
+            <div style={{display: 'flex', gap: '8px', alignItems: 'flex-end'}}>
+              <textarea
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendChatMessage();
+                  }
+                }}
+                placeholder="Ask about SQL syntax... (Enter to send)"
+                rows={2}
+                style={{
+                  flex: 1,
+                  padding: '9px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  resize: 'none',
+                  fontFamily: 'Arial, sans-serif',
+                  outline: 'none',
+                  lineHeight: '1.4'
                 }}
               />
+              <button
+                onClick={sendChatMessage}
+                disabled={isAiLoading || !chatInput.trim()}
+                style={{
+                  padding: '9px 14px',
+                  backgroundColor: isAiLoading || !chatInput.trim() ? '#ccc' : '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: isAiLoading || !chatInput.trim() ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  flexShrink: 0
+                }}
+              >
+                ➤
+              </button>
             </div>
-            <button 
-              onClick={runQuery} 
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                marginBottom: '25px'
-              }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#0056b3'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#007bff'}
-            >
-              Run Query
-            </button>
-          </div>
-          
-          <div className="results-section">
-            <h3 style={{color: '#333'}}>Results:</h3>
-            <div className="results-area">
-              {results}
+            <div style={{fontSize: '10px', color: '#aaa', marginTop: '6px'}}>
+              Shift+Enter for new line
             </div>
           </div>
-        </main>
+        </div>
+
       </div>
     </div>
   );

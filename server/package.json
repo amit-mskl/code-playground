@@ -7,11 +7,17 @@
     "dev": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["sql", "playground", "server", "postgresql"],
+  "keywords": [
+    "sql",
+    "playground",
+    "server",
+    "postgresql"
+  ],
   "author": "",
   "license": "ISC",
   "description": "Backend server for code playground application",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",

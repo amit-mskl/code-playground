@@ -3,9 +3,73 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const Anthropic = require('@anthropic-ai/sdk');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// ---------------------------------------------------------------------------
+// AI Learning Support — SQL Syntax Tutor (Claude Haiku)
+// ---------------------------------------------------------------------------
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const SQL_TUTOR_SYSTEM_PROMPT = `You are a SQL syntax assistant for learners practising SQL on GlobalMart's database.
+
+ALLOWED — you do these:
+- Fix SQL syntax errors (missing commas, wrong keywords, bad JOIN syntax, wrong clause order)
+- Name the syntax rule that was broken (e.g. "GROUP BY must come before ORDER BY")
+- Show a corrected SQL snippet (short, focused on the broken part)
+- Answer "what is the syntax for X?" with a brief SQL example
+- Explain what a Postgres error message means in plain English (syntax only, not logic)
+- Remind learners of SQL clause order: SELECT → FROM → JOIN → WHERE → GROUP BY → HAVING → ORDER BY → LIMIT
+
+FORBIDDEN — you never do these:
+- Tell the learner WHICH tables to join or query to answer a business question
+- Suggest what the query logic should be (e.g. "you should filter by region")
+- Write a complete working query that solves the learner's problem
+- Explain WHY an approach or strategy is better than another
+- Interpret or explain what the result data means
+
+If the learner asks for anything forbidden, reply ONLY with:
+"I can help with SQL syntax — figuring out what to query is your job. What specific syntax are you stuck on?"
+
+Keep every response under 5 sentences. Always show SQL snippets inline, not explanations.`;
+
+const SQL_REASONING_PATTERNS = [
+  /\bhow\s+(do|should|would|can)\s+i\s+(solve|approach|answer|find|get|write|build|create)\b/i,
+  /\b(write|build|create|give me)\s+(a|the|my|an)\s+(query|sql|select)\b/i,
+  /\bwhat\s+(query|sql)\s+(should|do|would|will)\b/i,
+  /\b(solve|complete|answer)\s+(this|the)\s+(question|problem|challenge|exercise)\b/i,
+  /\bwhat\s+(approach|strategy|method)\s+(should|to)\b/i,
+  /\bis\s+(my|this)\s+(query|logic|approach|solution)\s+(correct|right|good)\b/i,
+  /\bstep\s+by\s+step\b/i,
+];
+
+const SQL_LEAKAGE_PHRASES = [
+  'the approach here is',
+  'you should join',
+  'you need to join',
+  'to answer this question',
+  'to solve this',
+  'the logic here',
+  'the strategy is',
+  'here\'s a complete query',
+  'here\'s the full query',
+  'step 1',
+  'step 2',
+  'first, you need to',
+];
+
+const DEFLECTION = "I can help with SQL syntax — figuring out what to query is your job. What specific syntax are you stuck on?";
+
+function isForbiddenRequest(text) {
+  return SQL_REASONING_PATTERNS.some(p => p.test(text));
+}
+
+function hasLeakage(text) {
+  const lower = text.toLowerCase();
+  return SQL_LEAKAGE_PHRASES.some(phrase => lower.includes(phrase));
+}
 
 // PostgreSQL connection
 const pool = new Pool({
@@ -247,6 +311,55 @@ app.post('/api/log-activity', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// AI learning support endpoint
+app.post('/api/ai-help', async (req, res) => {
+  const { message, currentQuery, queryError, history = [] } = req.body;
+
+  if (!message || !message.trim()) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+
+  if (isForbiddenRequest(message)) {
+    return res.json({ reply: DEFLECTION });
+  }
+
+  // Build context-aware user message
+  let contextualMessage = message;
+  if (currentQuery && currentQuery.trim()) {
+    contextualMessage = `[SQL in editor]:\n\`\`\`sql\n${currentQuery.trim()}\n\`\`\`\n\n[Question]: ${message}`;
+  }
+  if (queryError) {
+    contextualMessage += `\n[Last error]: ${queryError}`;
+  }
+
+  // Build conversation history (last 6 messages = 3 turns)
+  const recentHistory = history.slice(-6).map(m => ({
+    role: m.role,
+    content: m.content
+  }));
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      temperature: 0,
+      system: SQL_TUTOR_SYSTEM_PROMPT,
+      messages: [...recentHistory, { role: 'user', content: contextualMessage }]
+    });
+
+    const reply = response.content[0].text;
+
+    if (hasLeakage(reply)) {
+      return res.json({ reply: DEFLECTION });
+    }
+
+    res.json({ reply });
+  } catch (err) {
+    console.error('AI help error:', err.message);
+    res.status(500).json({ error: 'AI service unavailable. Please try again.' });
   }
 });
 
