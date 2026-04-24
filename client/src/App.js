@@ -260,7 +260,8 @@ const handleSignup = async (userData) => {
         e.stopPropagation();
 
         navigator.clipboard.readText().then(clipText => {
-          if (clipText && clipText === internalClipboardRef.current) {
+          const normalize = s => s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+          if (clipText && normalize(clipText) === normalize(internalClipboardRef.current)) {
             // Copied from within this tab — allow it
             editor.executeEdits('paste', [{
               range: editor.getSelection(),
