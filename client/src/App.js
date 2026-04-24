@@ -23,6 +23,17 @@ function App() {
   const [chatInput, setChatInput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const chatBottomRef = useRef(null);
+  const internalClipboardRef = useRef('');
+
+  // Track text copied from within this tab so paste can be allowed selectively
+  useEffect(() => {
+    const handleCopy = () => {
+      const text = window.getSelection()?.toString() || '';
+      if (text) internalClipboardRef.current = text;
+    };
+    document.addEventListener('copy', handleCopy);
+    return () => document.removeEventListener('copy', handleCopy);
+  }, []);
 
   // Check for stored user session on component mount
   useEffect(() => {
@@ -242,36 +253,34 @@ const handleSignup = async (userData) => {
     }
   };
 
-  // NEW: Function to handle Monaco Editor mounting and paste blocking
   const handleEditorDidMount = (editor, monaco) => {
-    // Add paste event listener to block pasting
     editor.onKeyDown((e) => {
-      // Check for Ctrl+V (Windows/Linux) or Cmd+V (Mac)
       if ((e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyV) {
         e.preventDefault();
         e.stopPropagation();
-        
-        // Show friendly message
-        showPasteBlockedMessage();
-        
-        // Log paste attempt
-        logActivity('paste_blocked', null, {
-          activityType: 'paste_blocked',
-          timestamp: new Date().toISOString(),
-          message: 'User attempted to paste code',
-          success: true
-        }, true);
-      }
-    });
 
-    // Also block right-click paste option
-    editor.addAction({
-      id: 'block-paste',
-      label: 'Paste (Disabled for Learning)',
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV],
-      run: () => {
-        showPasteBlockedMessage();
-        return null;
+        navigator.clipboard.readText().then(clipText => {
+          if (clipText && clipText === internalClipboardRef.current) {
+            // Copied from within this tab — allow it
+            editor.executeEdits('paste', [{
+              range: editor.getSelection(),
+              text: clipText,
+              forceMoveMarkers: true
+            }]);
+          } else {
+            // External source — block it
+            showPasteBlockedMessage();
+            logActivity('paste_blocked', null, {
+              activityType: 'paste_blocked',
+              timestamp: new Date().toISOString(),
+              message: 'User attempted to paste code from external source',
+              success: true
+            }, true);
+          }
+        }).catch(() => {
+          // Clipboard permission denied — block as safe default
+          showPasteBlockedMessage();
+        });
       }
     });
 
@@ -280,13 +289,12 @@ const handleSignup = async (userData) => {
     if (contextMenuService) {
       const originalShowContextMenu = contextMenuService.showContextMenu;
       contextMenuService.showContextMenu = function(delegate) {
-        // Filter out paste-related actions
         if (delegate && delegate.getActions) {
           const originalGetActions = delegate.getActions;
           delegate.getActions = function() {
             const actions = originalGetActions.call(this);
-            return actions.filter(action => 
-              action.id !== 'editor.action.clipboardPasteAction' && 
+            return actions.filter(action =>
+              action.id !== 'editor.action.clipboardPasteAction' &&
               action.label !== 'Paste'
             );
           };
