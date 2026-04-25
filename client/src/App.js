@@ -1,8 +1,10 @@
 import './App.css';
 import { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import { OTPAuth } from './components/Auth';
+import { Auth } from './components/Auth';
 import Markdown from 'react-markdown';
+
+const API = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 function App() {
   // Authentication state
@@ -45,7 +47,7 @@ function App() {
   // Fetch available tables when user is logged in
   useEffect(() => {
     if (user) {
-      fetch('https://code-playground-xm3c.onrender.com/api/tables')
+      fetch(`${API}/api/tables`)
         .then(res => res.json())
         .then(data => setAvailableTables(data.tables || []))
         .catch(err => console.error('Error fetching tables:', err));
@@ -74,7 +76,7 @@ const logActivity = async (activityType, sqlQuery = null, executionResult = null
       success: success
     };
 
-    await fetch('https://code-playground-xm3c.onrender.com/api/log-activity', {
+    await fetch(`${API}/api/log-activity`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(activityData)
@@ -131,7 +133,7 @@ const handleLogin = async (userData) => {
     const startTime = Date.now();
     
     try {
-      const response = await fetch('https://code-playground-xm3c.onrender.com/api/query', {
+      const response = await fetch(`${API}/api/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sql: query })
@@ -360,7 +362,7 @@ const handleLogin = async (userData) => {
     const lastError = typeof results === 'string' && results.startsWith('Error:') ? results : null;
 
     try {
-      const response = await fetch('https://code-playground-xm3c.onrender.com/api/ai-help', {
+      const response = await fetch(`${API}/api/ai-help`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -426,7 +428,7 @@ const handleLogin = async (userData) => {
 
   const fetchTableSchema = async (tableName) => {
     try {
-      const response = await fetch(`https://code-playground-xm3c.onrender.com/api/schema/${tableName}`);
+      const response = await fetch(`${API}/api/schema/${tableName}`);
       const result = await response.json();
       
       if (result.success) {
@@ -446,7 +448,7 @@ const handleLogin = async (userData) => {
 
   // Render authentication screen if user is not logged in
   if (!user) {
-    return <OTPAuth onLogin={handleLogin} />;
+    return <Auth onLogin={handleLogin} />;
   }
 
   // Render main application for logged-in users

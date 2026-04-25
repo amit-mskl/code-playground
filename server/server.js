@@ -4,21 +4,15 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const Anthropic = require('@anthropic-ai/sdk');
-const nodemailer = require('nodemailer');
-
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ---------------------------------------------------------------------------
-// Email transporter (Gmail)
-// ---------------------------------------------------------------------------
-const emailTransporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+// Resend client — initialized only when API key is available (used for OTP emails)
+let resend = null;
+if (process.env.RESEND_API_KEY) {
+  const { Resend } = require('resend');
+  resend = new Resend(process.env.RESEND_API_KEY);
+}
 
 // ---------------------------------------------------------------------------
 // OTP store — in-memory, single-use, 10-minute TTL
@@ -254,6 +248,40 @@ app.get('/api/schema/:tableName', async (req, res) => {
   }
 });
 
+// Simple email login — no password, no OTP
+app.post('/api/email-login', async (req, res) => {
+  const { email, fullName } = req.body;
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  if (!email || !emailRegex.test(email.trim())) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+
+  try {
+    const existing = await supabasePool.query(
+      'SELECT id, login_id, email, full_name FROM sql_playground.users WHERE email = $1',
+      [email.trim()]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.json({ success: true, user: existing.rows[0] });
+    }
+
+    // New user — require a name before creating
+    if (!fullName || !fullName.trim()) {
+      return res.json({ needsName: true });
+    }
+
+    const created = await supabasePool.query(
+      'INSERT INTO sql_playground.users (login_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id, login_id, email, full_name',
+      [email.trim(), email.trim(), '', fullName.trim()]
+    );
+    res.json({ success: true, user: created.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Send OTP endpoint
 app.post('/api/send-otp', async (req, res) => {
   const { email, fullName } = req.body;
@@ -278,8 +306,8 @@ app.post('/api/send-otp', async (req, res) => {
   otpStore.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000, fullName: fullName?.trim() });
 
   try {
-    await emailTransporter.sendMail({
-      from: `"Enqurious SQL Arena" <${process.env.EMAIL_USER}>`,
+    const { error: sendError } = await resend.emails.send({
+      from: process.env.EMAIL_FROM || 'Enqurious SQL Arena <noreply@enqurious.com>',
       to: email,
       subject: `${code} is your SQL Arena login code`,
       html: `
@@ -294,6 +322,7 @@ app.post('/api/send-otp', async (req, res) => {
         </div>
       `
     });
+    if (sendError) throw new Error(sendError.message);
     res.json({ success: true, isNewUser });
   } catch (err) {
     console.error('Email send error:', err.message);
