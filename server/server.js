@@ -4,9 +4,34 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const Anthropic = require('@anthropic-ai/sdk');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// ---------------------------------------------------------------------------
+// Email transporter (Gmail)
+// ---------------------------------------------------------------------------
+const emailTransporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+// ---------------------------------------------------------------------------
+// OTP store — in-memory, single-use, 10-minute TTL
+// Map<email, { code, expiresAt, fullName }>
+// ---------------------------------------------------------------------------
+const otpStore = new Map();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [email, data] of otpStore.entries()) {
+    if (data.expiresAt < now) otpStore.delete(email);
+  }
+}, 15 * 60 * 1000);
 
 // ---------------------------------------------------------------------------
 // AI Learning Support — SQL Syntax Tutor (Claude Haiku)
@@ -224,6 +249,99 @@ app.get('/api/schema/:tableName', async (req, res) => {
       tableName,
       columns 
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send OTP endpoint
+app.post('/api/send-otp', async (req, res) => {
+  const { email, fullName } = req.body;
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+
+  // Check if user already exists
+  const existing = await supabasePool.query(
+    'SELECT id FROM sql_playground.users WHERE email = $1', [email]
+  );
+  const isNewUser = existing.rows.length === 0;
+
+  if (isNewUser && !fullName?.trim()) {
+    return res.status(400).json({ error: 'Full name is required for new accounts.', needsName: true });
+  }
+
+  // Generate 6-digit OTP
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  otpStore.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000, fullName: fullName?.trim() });
+
+  try {
+    await emailTransporter.sendMail({
+      from: `"Enqurious SQL Arena" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `${code} is your SQL Arena login code`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f8f9fa;border-radius:12px;">
+          <h2 style="color:#333;margin:0 0 8px 0;">Enqurious SQL Arena</h2>
+          <p style="color:#666;margin:0 0 28px 0;font-size:14px;">Your one-time login code</p>
+          <div style="background:#fff;border-radius:8px;padding:28px;text-align:center;border:1px solid #e9ecef;">
+            <div style="font-size:42px;font-weight:700;letter-spacing:10px;color:#007bff;font-family:monospace;">${code}</div>
+            <p style="color:#888;font-size:13px;margin:16px 0 0 0;">Expires in 10 minutes. Do not share this code.</p>
+          </div>
+          <p style="color:#aaa;font-size:12px;margin:20px 0 0 0;text-align:center;">If you didn't request this, you can safely ignore this email.</p>
+        </div>
+      `
+    });
+    res.json({ success: true, isNewUser });
+  } catch (err) {
+    console.error('Email send error:', err.message);
+    res.status(500).json({ error: 'Failed to send email. Please try again.' });
+  }
+});
+
+// Verify OTP endpoint
+app.post('/api/verify-otp', async (req, res) => {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    return res.status(400).json({ error: 'Email and code are required.' });
+  }
+
+  const stored = otpStore.get(email);
+  if (!stored) {
+    return res.status(400).json({ error: 'No code found for this email. Please request a new one.' });
+  }
+  if (Date.now() > stored.expiresAt) {
+    otpStore.delete(email);
+    return res.status(400).json({ error: 'Code expired. Please request a new one.' });
+  }
+  if (stored.code !== code.trim()) {
+    return res.status(400).json({ error: 'Incorrect code. Please try again.' });
+  }
+
+  // Single-use — delete immediately after match
+  otpStore.delete(email);
+
+  try {
+    // Get or create user
+    const existingUser = await supabasePool.query(
+      'SELECT id, login_id, email, full_name FROM sql_playground.users WHERE email = $1', [email]
+    );
+
+    let user;
+    if (existingUser.rows.length > 0) {
+      user = existingUser.rows[0];
+    } else {
+      const created = await supabasePool.query(
+        'INSERT INTO sql_playground.users (login_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id, login_id, email, full_name',
+        [email, email, '', stored.fullName || '']
+      );
+      user = created.rows[0];
+    }
+
+    res.json({ success: true, user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,351 +1,208 @@
-// src/components/Auth.js
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './Auth.css';
 
-const Login = ({ onLogin, onSwitchToSignup }) => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+const API = 'https://code-playground-xm3c.onrender.com';
+
+const OTPAuth = ({ onLogin }) => {
+  const [step, setStep] = useState('email'); // 'email' | 'otp'
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [needsName, setNeedsName] = useState(false);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
+  const otpRefs = useRef([]);
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
+  // Countdown timer for resend button
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const sendOTP = async (e) => {
+    e?.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
-      const response = await fetch('https://code-playground-xm3c.onrender.com/api/login', {
+      const res = await fetch(`${API}/api/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ email: email.trim(), fullName: fullName.trim() })
       });
+      const data = await res.json();
 
-      const result = await response.json();
-
-      if (result.success) {
-        onLogin(result.user);
+      if (data.needsName) {
+        setNeedsName(true);
+        setError(data.error);
+      } else if (data.success) {
+        setStep('otp');
+        setOtp(['', '', '', '', '', '']);
+        setResendCooldown(60);
+        setTimeout(() => otpRefs.current[0]?.focus(), 100);
       } else {
-        setError(result.error || 'Login failed');
+        setError(data.error || 'Something went wrong.');
       }
-    } catch (error) {
+    } catch {
       setError('Connection error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h2>Welcome to Enqurious SQL Arena</h2>
-          <p>Sign in to practice SQL queries</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email">
-              Email Address<span className="required-asterisk">*</span>
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              placeholder="Enter your email address"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">
-              Password<span className="required-asterisk">*</span>
-            </label>
-            <div className="password-input-container">
-              <input
-                type={showPassword ? "text" : "password"}
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                placeholder="Enter your password"
-              />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={togglePasswordVisibility}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94L17.94 17.94z"/>
-                    <path d="M1 1l22 22"/>
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19l-6.21-6.21a2.93 2.93 0 0 0-4.72-.22L9.9 4.24z"/>
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {error && <div className="error-message">{error}</div>}
-
-          <button type="submit" className="auth-button" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-
-        <div className="auth-footer">
-          <p>
-            Don't have an account?{' '}
-            <button 
-              type="button" 
-              className="link-button"
-              onClick={onSwitchToSignup}
-            >
-              Sign up here
-            </button>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const Signup = ({ onSignup, onSwitchToLogin }) => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const handleOtpChange = (index, value) => {
+    if (!/^\d*$/.test(value)) return; // digits only
+    const next = [...otp];
+    next[index] = value.slice(-1); // one digit per box
+    setOtp(next);
+    if (value && index < 5) otpRefs.current[index + 1]?.focus();
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
   };
 
-  const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(!showConfirmPassword);
-  };
-
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const handleSubmit = async (e) => {
+  const handleOtpPaste = (e) => {
     e.preventDefault();
-    setLoading(true);
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!pasted) return;
+    const next = [...otp];
+    pasted.split('').forEach((ch, i) => { next[i] = ch; });
+    setOtp(next);
+    otpRefs.current[Math.min(pasted.length, 5)]?.focus();
+  };
+
+  const verifyOTP = async (e) => {
+    e?.preventDefault();
+    const code = otp.join('');
+    if (code.length < 6) { setError('Please enter all 6 digits.'); return; }
     setError('');
-
-    // Client-side validation
-    if (!validateEmail(formData.email)) {
-      setError('Please enter a valid email address');
-      setLoading(false);
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
 
     try {
-      const response = await fetch('https://code-playground-xm3c.onrender.com/api/signup', {
+      const res = await fetch(`${API}/api/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          fullName: formData.fullName
-        })
+        body: JSON.stringify({ email: email.trim(), code })
       });
+      const data = await res.json();
 
-      const result = await response.json();
-
-      if (result.success) {
-        onSignup(result.user);
+      if (data.success) {
+        onLogin(data.user);
       } else {
-        setError(result.error || 'Signup failed');
+        setError(data.error || 'Verification failed.');
+        setOtp(['', '', '', '', '', '']);
+        otpRefs.current[0]?.focus();
       }
-    } catch (error) {
+    } catch {
       setError('Connection error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Auto-submit when all 6 digits are filled
+  useEffect(() => {
+    if (step === 'otp' && otp.every(d => d !== '')) {
+      verifyOTP();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp]);
+
   return (
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <h2>Join Enqurious SQL Arena</h2>
-          <p>Create your account to start learning SQL</p>
+          <h2>Enqurious SQL Arena</h2>
+          <p>{step === 'email' ? 'Sign in or sign up — no password needed' : `Enter the code sent to ${email}`}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="fullName">
-              Full Name<span className="required-asterisk">*</span>
-            </label>
-            <input
-              type="text"
-              id="fullName"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              required
-              placeholder="Enter your full name"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">
-              Email Address<span className="required-asterisk">*</span>
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              placeholder="Enter your email address"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">
-              Password<span className="required-asterisk">*</span>
-            </label>
-            <div className="password-input-container">
+        {step === 'email' ? (
+          <form onSubmit={sendOTP} className="auth-form">
+            <div className="form-group">
+              <label htmlFor="email">Email Address</label>
               <input
-                type={showPassword ? "text" : "password"}
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
+                type="email"
+                id="email"
+                value={email}
+                onChange={e => { setEmail(e.target.value); setNeedsName(false); setError(''); }}
                 required
-                placeholder="Create a password (min 6 characters)"
+                placeholder="you@example.com"
+                autoFocus
               />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={togglePasswordVisibility}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94L17.94 17.94z"/>
-                    <path d="M1 1l22 22"/>
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19l-6.21-6.21a2.93 2.93 0 0 0-4.72-.22L9.9 4.24z"/>
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                )}
-              </button>
             </div>
-          </div>
 
-          <div className="form-group">
-            <label htmlFor="confirmPassword">
-              Confirm Password<span className="required-asterisk">*</span>
-            </label>
-            <div className="password-input-container">
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                placeholder="Confirm your password"
-              />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={toggleConfirmPasswordVisibility}
-                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-              >
-                {showConfirmPassword ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94L17.94 17.94z"/>
-                    <path d="M1 1l22 22"/>
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19l-6.21-6.21a2.93 2.93 0 0 0-4.72-.22L9.9 4.24z"/>
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
+            {needsName && (
+              <div className="form-group">
+                <label htmlFor="fullName">Full Name <span style={{color:'#888',fontWeight:'normal',fontSize:'12px'}}>(first-time only)</span></label>
+                <input
+                  type="text"
+                  id="fullName"
+                  value={fullName}
+                  onChange={e => { setFullName(e.target.value); setError(''); }}
+                  required
+                  placeholder="Your full name"
+                  autoFocus
+                />
+              </div>
+            )}
 
-          {error && <div className="error-message">{error}</div>}
+            {error && <div className="error-message">{error}</div>}
 
-          <button type="submit" className="auth-button" disabled={loading}>
-            {loading ? 'Creating Account...' : 'Create Account'}
-          </button>
-        </form>
-
-        <div className="auth-footer">
-          <p>
-            Already have an account?{' '}
-            <button 
-              type="button" 
-              className="link-button"
-              onClick={onSwitchToLogin}
-            >
-              Sign in here
+            <button type="submit" className="auth-button" disabled={loading || !email}>
+              {loading ? 'Sending code...' : 'Send login code'}
             </button>
-          </p>
-        </div>
+          </form>
+
+        ) : (
+          <form onSubmit={verifyOTP} className="auth-form">
+            <div className="otp-group">
+              {otp.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={el => otpRefs.current[i] = el}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={e => handleOtpChange(i, e.target.value)}
+                  onKeyDown={e => handleOtpKeyDown(i, e)}
+                  onPaste={handleOtpPaste}
+                  className="otp-box"
+                />
+              ))}
+            </div>
+
+            {error && <div className="error-message">{error}</div>}
+
+            <button type="submit" className="auth-button" disabled={loading || otp.join('').length < 6}>
+              {loading ? 'Verifying...' : 'Verify code'}
+            </button>
+
+            <div className="auth-footer" style={{marginTop: '16px', paddingTop: '16px'}}>
+              <button
+                type="button"
+                className="link-button"
+                onClick={sendOTP}
+                disabled={resendCooldown > 0 || loading}
+              >
+                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
+              </button>
+              <span style={{color:'#ccc',margin:'0 10px'}}>·</span>
+              <button type="button" className="link-button" onClick={() => { setStep('email'); setError(''); setOtp(['','','','','','']); }}>
+                Change email
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
 };
 
-export { Login, Signup };
+export { OTPAuth };

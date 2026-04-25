@@ -1,13 +1,12 @@
 import './App.css';
 import { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import { Login, Signup } from './components/Auth';
+import { OTPAuth } from './components/Auth';
 import Markdown from 'react-markdown';
 
 function App() {
   // Authentication state
   const [user, setUser] = useState(null);
-  const [authMode, setAuthMode] = useState('login');
   
   // SQL Editor state
   const [query, setQuery] = useState('SELECT * FROM dbo.ex_customers LIMIT 10;');
@@ -93,19 +92,6 @@ const handleLogin = async (userData) => {
   // Log login activity - use email as loginId for new email-based users
   await logActivity('login', null, {
     activityType: 'login',
-    timestamp: new Date().toISOString(),
-    userAgent: navigator.userAgent,
-    success: true
-  }, true, userData.email || userData.login_id); // Use email first, fallback to login_id
-};
-
-const handleSignup = async (userData) => {
-  setUser(userData);
-  localStorage.setItem('sqlArenaUser', JSON.stringify(userData));
-  
-  // Log signup activity - use email as loginId for new email-based users
-  await logActivity('signup', null, {
-    activityType: 'signup', 
     timestamp: new Date().toISOString(),
     userAgent: navigator.userAgent,
     success: true
@@ -458,23 +444,9 @@ const handleSignup = async (userData) => {
     setQuery(`SELECT * FROM ${tableName} LIMIT 10;`);
   };
 
-  // Render authentication screens if user is not logged in
+  // Render authentication screen if user is not logged in
   if (!user) {
-    if (authMode === 'login') {
-      return (
-        <Login 
-          onLogin={handleLogin} 
-          onSwitchToSignup={() => setAuthMode('signup')}
-        />
-      );
-    } else {
-      return (
-        <Signup 
-          onSignup={handleSignup} 
-          onSwitchToLogin={() => setAuthMode('login')}
-        />
-      );
-    }
+    return <OTPAuth onLogin={handleLogin} />;
   }
 
   // Render main application for logged-in users
