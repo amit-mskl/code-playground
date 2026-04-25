@@ -387,7 +387,7 @@ const handleLogin = async (userData) => {
     const headers = Object.keys(data[0]);
     
     return (
-      <div style={{overflowX: 'auto', marginTop: '20px'}}>
+      <div>
         <table border="1" style={{borderCollapse: 'collapse', width: '100%', minWidth: '600px'}}>
           <thead>
             <tr>
@@ -725,7 +725,12 @@ const handleLogin = async (userData) => {
 
             <div className="results-section">
               <h3 style={{color: '#333'}}>Results:</h3>
-              <div className="results-area">
+              <div style={{
+                overflow: 'auto',
+                maxHeight: '55vh',
+                border: '1px solid #ddd',
+                borderRadius: '4px'
+              }}>
                 {results}
               </div>
             </div>
