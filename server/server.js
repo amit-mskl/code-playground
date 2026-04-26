@@ -463,7 +463,7 @@ app.post('/api/log-activity', async (req, res) => {
 
 // AI learning support endpoint
 app.post('/api/ai-help', async (req, res) => {
-  const { message, currentQuery, queryError, history = [] } = req.body;
+  const { message, currentQuery, queryError, history = [], userEmail } = req.body;
 
   if (!message || !message.trim()) {
     return res.status(400).json({ error: 'Message is required' });
@@ -498,9 +498,18 @@ app.post('/api/ai-help', async (req, res) => {
     });
 
     const reply = response.content[0].text;
+    const tokensUsed = (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0);
 
     if (hasLeakage(reply)) {
       return res.json({ reply: DEFLECTION });
+    }
+
+    // Log conversation to DB (fire-and-forget — don't block the response)
+    if (userEmail) {
+      supabasePool.query(
+        'INSERT INTO sql_playground.conversations (user_email, user_message, bot_response, tokens_used) VALUES ($1, $2, $3, $4)',
+        [userEmail, message, reply, tokensUsed]
+      ).catch(err => console.error('Conversation log error:', err.message));
     }
 
     res.json({ reply });

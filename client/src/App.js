@@ -369,7 +369,8 @@ const handleLogin = async (userData) => {
           message: userMsg,
           currentQuery: query,
           queryError: lastError,
-          history: chatMessages.slice(-6)
+          history: chatMessages.slice(-6),
+          userEmail: user?.email
         })
       });
       const data = await response.json();
