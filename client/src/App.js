@@ -37,10 +37,16 @@ function App() {
   }, []);
 
   // Check for stored user session on component mount
+  // Discard sessions that are missing email (stale pre-OTP-auth format)
   useEffect(() => {
     const storedUser = localStorage.getItem('sqlArenaUser');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsed = JSON.parse(storedUser);
+      if (parsed?.email) {
+        setUser(parsed);
+      } else {
+        localStorage.removeItem('sqlArenaUser');
+      }
     }
   }, []);
 
